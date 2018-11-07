@@ -1,49 +1,62 @@
-var http = require('http'),
-    path = require('path'),
-    methods = require('methods'),
-    express = require('express'),
-    bodyParser = require('body-parser'),
-    session = require('express-session'),
-    cors = require('cors'),
-    passport = require('passport'),
-    errorhandler = require('errorhandler'),
-    mongoose = require('mongoose');
+import express from 'express';
+import session from 'session';
+import cors from 'cors';
+import errorhandler from 'errorhandler';
+import mongoose from 'mongoose';
+import path from 'path';
+import morgan from 'morgan';
+import methodOverride from 'method-override';
 
-var isProduction = process.env.NODE_ENV === 'production';
+
+const isProduction = process.env.NODE_ENV === 'production';
 
 // Create global app object
-var app = express();
+const app = express();
 
 app.use(cors());
 
-// Normal express config defaults
-app.use(require('morgan')('dev'));
+//Take the morgan and methodOverride to the top of the file for readability
+app.use(morgan('dev'));
 
-app.use(require('method-override')());
-app.use(express.static(__dirname + '/public'));
+app.use(methodOverride());
 
-app.use(session({ secret: 'conduit', cookie: { maxAge: 60000 }, resave: false, saveUninitialized: false  }));
+// using path join to combine the path segments into one, replacing '+'
+const directory = path.join(__dirname, '/public');
+
+app.use(express.static(directory))
+
+/* reformat this line by splitting into two three lines using the braces as break points.
+ This is for more readability
+ */
+app.use(session({
+  secret: 'conduit',
+  cookie: { maxAge: 60000 },
+  resave: false, saveUninitialized: false
+}));
 
 if (!isProduction) {
   app.use(errorhandler());
 }
 
-if(isProduction){
+if (isProduction) {
   mongoose.connect(process.env.MONGODB_URI);
 } else {
   mongoose.connect('mongodb://localhost/conduit');
   mongoose.set('debug', true);
 }
 
-require('./models/User');
-require('./models/Article');
-require('./models/Comment');
-require('./config/passport');
 
-
-/// catch 404 and forward to error handler
-app.use(function(req, res, next) {
-  var err = new Error('Not Found');
+/**
+ * Catch 404 and forward to error handler
+ *
+ * @param {object} request HTTP Request
+ * @param {object} response  HTTP response
+ * @param {function} next Callback function for middleware
+ *
+ * @return {void}
+ */
+app.use((req, res, next) => {
+  const err = new Error('Not Found');
   err.status = 404;
   next(err);
 });
@@ -53,29 +66,38 @@ app.use(function(req, res, next) {
 // development error handler
 // will print stacktrace
 if (!isProduction) {
-  app.use(function(err, req, res, next) {
+  app.use((err, req, res, next) => {
     console.log(err.stack);
 
     res.status(err.status || 500);
 
-    res.json({'errors': {
+    res.json({
+      'errors': {
       message: err.message,
       error: err
     }});
   });
 }
 
-// production error handler
-// no stacktraces leaked to user
-app.use(function(err, req, res, next) {
+/**
+ * Handles error for production
+ *
+ * @param {object} error Error
+ * @param {object} request Express request object
+ * @param {object} response Express response object
+ *
+ * @return {void}
+ */
+app.use((err, req, res, next) => {
   res.status(err.status || 500);
-  res.json({'errors': {
+  res.json({
+    'errors': {
     message: err.message,
     error: {}
   }});
 });
 
 // finally, let's start our server...
-var server = app.listen( process.env.PORT || 3000, function(){
-  console.log('Listening on port ' + server.address().port);
+const server = app.listen( process.env.PORT || 3000, () => {
+  console.log(`Listening on port ' + ${server.address().port}`);
 });
